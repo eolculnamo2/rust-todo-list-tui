@@ -16,11 +16,11 @@ pub fn render_search_field(
     highlighted_list_index: &Option<i32>,
     chunks: &Vec<Rect>,
 ) {
-    let input_paragraph = Paragraph::new(app_state.new_todo.clone())
+    let input_paragraph = Paragraph::new(app_state.new_todo.name.clone())
         .style(match app_state.mode {
             Mode::Edit if highlighted_list_index.is_none() => Style::default().fg(Color::Yellow),
             _ => Style::default(),
         })
         .block(Block::default().borders(Borders::ALL).title("Input"));
-    f.render_widget(input_paragraph, chunks[0]);
+    f.render_widget(input_paragraph, chunks[1]);
 }

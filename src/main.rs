@@ -11,7 +11,8 @@ use state::{AppElement, TerminalEventOutcome};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, BorderType, Borders},
+    style::Style,
+    widgets::{Block, BorderType, Borders, Paragraph},
     Terminal,
 };
 
@@ -34,6 +35,7 @@ fn main() -> Result<()> {
                 .margin(2)
                 .constraints(
                     [
+                        Constraint::Length(3),
                         Constraint::Length(3), // these seem to control how much space chunks take?
                         Constraint::Min(12),
                         Constraint::Min(1),
@@ -46,6 +48,10 @@ fn main() -> Result<()> {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded);
             f.render_widget(main_block, f.size());
+
+            let title =
+                Paragraph::new("Todo List: Push \"i\" to insert text.").style(Style::default());
+            f.render_widget(title, chunks[0]);
 
             let highlighted_list_index = match app_state.focused_element {
                 AppElement::ListItem(n) => Some(n),

@@ -1,27 +1,33 @@
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use tui::widgets::ListItem;
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum Mode {
     Normal,
     Edit,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum TerminalEventOutcome {
     None,
     EndProgram,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum AppElement {
     TodoTextInput,
     ListItem(i32),
 }
 
+#[derive(Clone)]
+pub struct TodoItem {
+    pub name: String,
+    pub is_done: bool,
+}
+
+#[derive(Clone)]
 pub struct AppState {
-    pub new_todo: String,
-    pub todos: Vec<String>,
+    pub new_todo: TodoItem,
+    pub todos: Vec<TodoItem>,
     pub mode: Mode,
     pub focused_element: AppElement,
 }
@@ -29,11 +35,15 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            new_todo: String::new(),
+            new_todo: TodoItem {
+                name: String::new(),
+                is_done: false,
+            },
             todos: vec![],
             mode: Mode::Normal,
             focused_element: AppElement::TodoTextInput,
         }
+        .to_owned()
     }
 
     pub fn terminal_event_handler(&mut self, event: Event) -> TerminalEventOutcome {
@@ -60,44 +70,42 @@ impl AppState {
                     kind: _,
                     state: _,
                 } => {
-                    if self.mode == Mode::Edit {
-                        match self.focused_element {
-                            AppElement::TodoTextInput if self.todos.len() > 0 => {
-                                self.focused_element = AppElement::ListItem(0);
-                            }
-                            AppElement::ListItem(n) => {
-                                if n as usize <= 0 {
-                                    self.focused_element = AppElement::TodoTextInput;
-                                } else {
-                                    self.focused_element = AppElement::ListItem(n - 1)
-                                }
-                            }
-                            _ => self.focused_element = AppElement::TodoTextInput,
+                    self.mode = Mode::Normal;
+                    match self.focused_element {
+                        AppElement::TodoTextInput if self.todos.len() > 0 => {
+                            self.focused_element = AppElement::ListItem(0);
                         }
+                        AppElement::ListItem(n) => {
+                            if n as usize <= 0 {
+                                self.focused_element = AppElement::TodoTextInput;
+                            } else {
+                                self.focused_element = AppElement::ListItem(n - 1)
+                            }
+                        }
+                        _ => self.focused_element = AppElement::TodoTextInput,
                     }
 
                     TerminalEventOutcome::None
                 }
                 KeyEvent {
                     code: KeyCode::Tab,
-                    modifiers: _,
+                    modifiers: KeyModifiers::NONE,
                     kind: _,
                     state: _,
                 } => {
-                    if self.mode == Mode::Edit {
-                        match self.focused_element {
-                            AppElement::TodoTextInput if self.todos.len() > 0 => {
-                                self.focused_element = AppElement::ListItem(0);
-                            }
-                            AppElement::ListItem(n) => {
-                                if n as usize >= self.todos.len() - 1 {
-                                    self.focused_element = AppElement::TodoTextInput;
-                                } else {
-                                    self.focused_element = AppElement::ListItem(n + 1)
-                                }
-                            }
-                            _ => self.focused_element = AppElement::TodoTextInput,
+                    self.mode = Mode::Normal;
+                    match self.focused_element {
+                        AppElement::TodoTextInput if self.todos.len() > 0 => {
+                            self.focused_element = AppElement::ListItem(0);
                         }
+                        AppElement::ListItem(n) => {
+                            if n as usize >= self.todos.len() - 1 {
+                                self.focused_element = AppElement::TodoTextInput;
+                            } else {
+                                self.focused_element = AppElement::ListItem(n + 1)
+                            }
+                        }
+                        _ => self.focused_element = AppElement::TodoTextInput,
                     }
 
                     TerminalEventOutcome::None
@@ -121,12 +129,29 @@ impl AppState {
                     kind: _,
                     state: _,
                 } => {
-                    if self.mode == Mode::Edit && self.new_todo.trim().len() > 0 {
+                    if self.mode == Mode::Edit && self.new_todo.name.trim().len() > 0 {
                         self.todos.push(self.new_todo.clone());
-                        self.new_todo = String::new();
+                        self.new_todo = TodoItem {
+                            name: String::new(),
+                            is_done: false,
+                        };
                     }
                     TerminalEventOutcome::None
                 }
+                // Toggle Todo Done
+                KeyEvent {
+                    code: KeyCode::Char(' '),
+                    modifiers: _,
+                    kind: _,
+                    state: _,
+                } if self.mode == Mode::Normal => {
+                    if let AppElement::ListItem(n) = self.focused_element {
+                        let new_is_done = !self.todos[n as usize].is_done;
+                        self.todos[n as usize].is_done = new_is_done;
+                    }
+                    TerminalEventOutcome::None
+                }
+
                 // Delete text
                 KeyEvent {
                     code: KeyCode::Backspace,
@@ -135,7 +160,7 @@ impl AppState {
                     state: _,
                 } => {
                     if self.mode == Mode::Edit {
-                        self.new_todo.pop();
+                        self.new_todo.name.pop();
                     }
                     TerminalEventOutcome::None
                 }
@@ -150,7 +175,7 @@ impl AppState {
                     if self.mode == Mode::Normal && c == 'i' {
                         self.mode = Mode::Edit;
                     } else if self.mode == Mode::Edit {
-                        self.new_todo.push(c);
+                        self.new_todo.name.push(c);
                     }
                     TerminalEventOutcome::None
                 }
